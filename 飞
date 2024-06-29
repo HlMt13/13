@@ -1,0 +1,326 @@
+import pgzrun
+import random
+import pygame
+import sys
+from pgzero.loaders import sounds
+from pygame.locals import *
+
+#后续加入升级系统，敌人多样化，难度提升，BOSS等元素,武器、技能等
+score = 0
+s = 0
+TITLE = "飞机大战"
+WIDTH = 480
+HEIGHT = 780
+
+hero_width = 103#英雄机
+hero_height = 50
+move_speed = 4
+hero_bullet = []
+pygame.init()
+
+hero = Actor('hero',center = (240,745))
+
+enemy_list = []#敌人
+enemy_width = 75
+enemy_height =49
+enemy_speed = 2
+num = 0
+#存在时间
+living_time = 500
+enemy1_list = []#敌人
+enemy1_width = 64
+enemy1_height =64
+enemy1_speed = 1
+
+hp = 3000
+
+
+interval_bullet = 140
+interval_bullet1 = 20
+interval_enemy = 240
+interval_enemy1 = 180
+#生成间隔
+
+bullet_list = []#子弹
+bullet_list1 = []#子弹
+bullet_width = 20
+bullet_height = 20
+bullet_speed =8
+bullet_speed1 =16
+bullet_hp = 1000
+game = True
+game_started =False
+game_exited = False
+cur_time = 0
+cur_time1 = 0
+
+
+
+def create_enemy():
+    global enemy_list,enemy_speed,enemy_height,enemy_width
+    new_enemy_curx =random.randint(int(0+enemy_width/2),int(WIDTH-enemy_width/2))
+    new_enemy_cury =24
+    live_time = 0
+    #目标位置，当前位置，生存时间
+    lis = [new_enemy_curx,new_enemy_cury,live_time]
+    enemy_list.append(lis)
+
+def create_enemy1():
+    global enemy1_list,enemy1_speed,enemy1_height,enemy1_width
+    new_enemy1_curx =random.randint(int(0+enemy1_width/2),int(WIDTH-enemy1_width/2))
+    new_enemy1_cury =0
+    live_time1 = 0
+    #目标位置，当前位置，生存时间
+    lis1 = [new_enemy1_curx,new_enemy1_cury,live_time1]
+    enemy1_list.append(lis1)
+
+def on_mouse_down(button):
+    global hero_bullet
+    if button == mouse.LEFT:
+        curr_x = hero.x
+        curr_y = hero.y
+        hero_bullet.append([curr_x,curr_y])
+        sounds.gun.play()
+
+
+
+def update():
+    global move_speed,game_started,cur_time,cur_time1,game_exited,blowup_used,blowup_live,num,game,s,score,enemy_list,enemy1_list,bullet_list,bullet_list1
+    if keyboard.K_s:
+        game_started =True
+    if keyboard.K_z:
+        game =False
+    if keyboard.K_q:
+        sys.exit()
+    if keyboard.K_r:
+        hero.x = WIDTH/2
+        hero.y = HEIGHT -hero_height/2
+        score = 0
+        enemy_list = []
+        enemy1_list = []
+        bullet_list = []
+        bullet_list1 = []
+        game = True
+        game_started = False
+        game_exited = False
+
+    if game_started == True and game_exited == False:
+
+        cur_time1 += 1
+        cur_time += 1
+        # 生成enemy
+        if cur_time == interval_enemy and num <=1 and game == True:
+                create_enemy()
+                num += 1
+                cur_time = 0
+
+        # 生成enemy1
+        if cur_time1 == interval_enemy1 and game == True:
+             create_enemy1()
+             cur_time1 = 0
+
+
+
+        #角色移动
+        if keyboard.K_a:
+            if hero.x - hero_width / 2 - move_speed >= 0:
+               hero.x -= move_speed
+        if keyboard.K_d:
+            if hero.x + hero_width / 2 + move_speed <= WIDTH:
+               hero.x += move_speed
+        if keyboard.K_w:
+            if hero.y - hero_height / 2 - move_speed >= 0:
+               hero.y -= move_speed
+        if keyboard.K_s:
+            if hero.y + hero_height / 2 + move_speed <= HEIGHT:
+                hero.y += move_speed
+
+
+        for ene1 in enemy1_list:
+            curr1_x = ene1[0]
+            curr1_y = ene1[1]
+            if curr1_y >= 900: continue
+            curr1_y += enemy1_speed
+            ene1[1] = curr1_y
+            live = ene1[2]
+            # 发射子弹
+            if int(live) % interval_bullet1 ==0 and live !=0:
+                if live < 80 :
+                    b_curx = curr1_x
+                    b_cury = curr1_y
+                    bullet_list.append([b_curx,b_cury])
+                elif live > 160:
+                    live=0
+            ene1[2] = live + 1
+        #enemy移动
+        for ene in enemy_list:
+            curr_x=ene[0]
+            curr_y=ene[1]
+            live=ene[2]
+            if curr_x <hero.x:
+                curr_x += enemy_speed
+                if curr_y < 50:
+                    curr_y +=enemy1_speed
+            elif curr_x > hero.x:
+                curr_x -= enemy_speed
+                if curr_y < 50:
+                    curr_y +=enemy1_speed
+
+            if int(live) % interval_bullet ==0 and live !=0:#发射子弹
+                b_curx = curr_x
+                b_cury = curr_y
+                bullet_list.append([b_curx,b_cury])
+
+            ene[0]=curr_x
+            ene[1]=curr_y
+            ene[2]=live+1
+
+        #子弹移动
+        for bu in bullet_list:
+            b_cury = bu[1]
+            if b_cury>=900:continue
+            b_cury += bullet_speed
+            bu[1]=b_cury
+        for bu in bullet_list1:
+            b_cury = bu[1]
+            if b_cury>=900:continue
+            b_cury += bullet_speed1
+            bu[1]=b_cury
+
+        #自己的子弹移动
+        for bu in hero_bullet:
+            curr_y = bu[1]
+            if curr_y<=-100:
+                continue
+            curr_y -= bullet_speed
+            bu[1] = curr_y
+
+        #检查是否碰撞
+        for ene in enemy_list:
+            curr_x = ene[0]
+            curr_y=ene[1]
+            if curr_x == -100 or curr_x == 600:#下场的enemy
+                continue
+            enemy = Actor('enemy',(curr_x,curr_y))
+            flag =False
+            for bu in hero_bullet:
+                cur_x = bu[0]
+                cur_y = bu[1]
+                if curr_y <= -100: continue
+                bullet = Actor('bullet', (cur_x, cur_y))
+                if bullet.colliderect(enemy):
+                    flag= True
+                    sounds.got_enemy.play()
+                    score += 1
+                    #print(ene[0],ene[1])
+                    ene[0]=-100
+                    #print(ene[0],ene[1])
+                    bu[1]=-100
+
+                    break
+
+            if flag:
+                continue
+            if hero.colliderect(enemy):
+                sounds.explode.play()
+                print("fail")
+                game_exited =True
+                break
+
+        for ene1 in enemy1_list:
+            curr1_x = ene1[0]
+            curr1_y=ene1[1]
+            if curr1_x == -100 or curr1_x == 600:#下场的enemy
+                continue
+            enemy1 = Actor('enemy',(curr1_x,curr1_y))
+            flag =False
+            for bu in hero_bullet:
+                cur_x = bu[0]
+                cur_y = bu[1]
+                if curr1_y <= -100: continue
+                bullet = Actor('bullet', (cur_x, cur_y))
+                if bullet.colliderect(enemy1):
+                    flag= True
+                    score += 1
+                    sounds.got_enemy.play()
+                    #print(ene[0],ene[1])
+                    ene1[0]=-100
+                    #print(ene[0],ene[1])
+                    bu[1]=-100
+                    break
+
+            if flag:
+                continue
+            if hero.colliderect(enemy1):
+                sounds.explode.play()
+                print("fail")
+                game_exited =True
+                s = 1
+                break
+
+        #与子弹碰撞
+        for bu in bullet_list:
+            curr_x, curr_y = bu  # 直接解包坐标
+            if curr_y >= 900:
+                continue  # 子弹超出屏幕,重置
+
+            # 子弹的矩形区域来进行碰撞检测
+            bullet_rect = pygame.Rect(curr_x, curr_y, bullet_width, bullet_height)
+
+            # 检测碰撞
+            if hero.colliderect(bullet_rect):
+                blowup = Actor('hero_blowup', center=(240, 400))
+                print("fail")
+                game_exited = True
+                break
+
+
+def draw():
+    screen.clear()
+    screen.blit('background',(0,0))
+    hero.draw()
+    screen.draw.text("score=" + str(score), (30, 30))
+    for ene in enemy_list:
+        cur_x =ene[0]
+        cur_y=ene[1]
+        if cur_x ==-100 or cur_x == 600:
+            continue
+        enemy = Actor('enemy',(cur_x,cur_y))
+        enemy.draw()
+
+    for ene1 in enemy1_list:
+        cur1_x =ene1[0]
+        cur1_y =ene1[1]
+        if cur1_x ==-100 or cur1_x == 600:
+            continue
+        enemy1 = Actor('enemy1',(cur1_x,cur1_y))
+        enemy1.draw()
+
+    for bu in bullet_list:
+        cur_x = bu[0]
+        cur_y = bu[1]
+        if cur_y>=900:
+            continue
+        bullet = Actor('bullet',(cur_x,cur_y))
+        bullet.draw()
+
+    for bu in hero_bullet:
+        curr_x =bu[0]
+        curr_y = bu[1]
+        if curr_y <= -100:
+            continue
+        bullet = Actor('bullet',(curr_x,curr_y))
+        bullet.draw()
+    if game_exited:
+            blowup = Actor('hero_blowup', center = (240,400))
+            sounds.explode.play()
+            blowup.draw()
+            screen.draw.text("Game Over", (WIDTH // 2 -100, 400), color='red', fontsize=70)
+
+
+def on_exit():
+    global score
+    score = 0
+
+sounds.game_music.play()
+pgzrun.go()
